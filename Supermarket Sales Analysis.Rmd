@@ -1,35 +1,34 @@
 ---
 title: "Supermart Sales Analysis"
 author: "Chloe Shin"
-date: "2025-09-13"
 output:
-  pdf_document:
-    latex_engine: xelatex
-fontsize: 10pt
-mainfont: "Arial"
-header-includes:
-  - \renewcommand{\bfdefault}{m}
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(error=TRUE)
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.align = "center")
 knitr::opts_chunk$set(message = FALSE)
 set.seed(0)
 ```
 
-### The dataset includes customer information of a supermarket that aims to predict the success of future marketing campaigns. 
-
+## Data Preparation
 ```{r}
 library(tidyverse)
 library(tidymodels)
+library(knitr)
 ifood <- read_csv("https://raw.githubusercontent.com/nailson/ifood-data-business-analyst-test/refs/heads/master/ifood_df.csv")
 ```
+
 ```{r}
 ifood <- ifood %>% 
   distinct()
 ```
 
-## 1. Customer profile
+## Customer Profile 
+
+### 1. Age Distribution
 ```{r}
 ifood %>% 
   ggplot(aes(x = Age)) +
@@ -37,10 +36,17 @@ ifood %>%
                  binwidth = 5, 
                  fill = 'orange') +
   labs(x = "Age", 
-       y = "Proportion (%)", 
-       title = "Age Distribution")
+       y = "Proportion", 
+       title = "Age Distribution") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(margin = margin(b = 20), size = 15, face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 15))
+  )
 ```
 
+### 2. Income Distribution
 ```{r}
 ifood %>% 
   ggplot(aes(x = Income)) +
@@ -48,10 +54,17 @@ ifood %>%
                  binwidth = 10000, 
                  fill = 'skyblue') +
   labs(x = "Annual Income (USD)", 
-       y = "Proportion (%)", 
-       title = "Income Distribution")
+       y = "Proportion", 
+       title = "Income Distribution") +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(margin = margin(b = 20), size = 15, face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 15))
+  )
 ```
 
+### 3. Marital Status
 ```{r}
 ifood_marriage <- ifood %>%
   pivot_longer(cols = c(marital_Widow, 
@@ -71,17 +84,26 @@ ifood_marriage <- ifood_marriage %>%
       marital_Together = "Together",
       marital_Widow    = "Widow")) %>%
   mutate(proportion = value / sum(value))
+```
 
+```{r}
 ifood_marriage %>%
   ggplot(aes(x = marital, 
              y = proportion, 
              fill = marital)) +
   geom_col(fill = 'lightgreen') +
   labs (x = 'Marital Status', 
-        y = 'Proportion (%)', 
-        title = 'Marital Status Distribution')
+        y = 'Proportion', 
+        title = 'Marital Status Distribution') +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(margin = margin(b = 20), size = 15, face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 15))
+  )
 ```
 
+### 4. Highest Education
 ```{r}
 ifood_education <- ifood %>%
    pivot_longer(cols = c(`education_2n Cycle`, 
@@ -101,7 +123,9 @@ ifood_education <- ifood_education %>%
       education_Master = "Master",
       education_PhD    = "PhD")) %>%
       mutate(proportion = value / sum(value))
+```
 
+```{r}
 ifood_education %>%
   mutate(education = factor(education, 
                             levels = c("Basic", "2n Cycle","Bachelor", "Master", "PhD"))) %>%
@@ -109,12 +133,18 @@ ifood_education %>%
              y = proportion, 
              fill = education)) +
   geom_col(fill = 'yellow') +
-  labs (x = 'Education Status', 
-        y = 'Proportion (%)', 
-        title = 'Education Status Distribution')
+  labs (x = 'Highest Education', 
+        y = 'Proportion', 
+        title = 'Education Status Distribution') +  
+  theme_minimal() +
+  theme(
+    plot.title = element_text(margin = margin(b = 20), size = 15, face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 15))
+  )
 ```
 
-## 2. Assessing the success of previous marketing campaigns
+## Previous Campaigns Acceptance Rate
 ```{r}
 ifood_campaign <- ifood[, c("AcceptedCmp1", 
                             "AcceptedCmp2", 
@@ -129,12 +159,14 @@ ifood_campaign <- ifood %>%
          "Campaign 3" = sum(AcceptedCmp3),
          "Campaign 4" = sum(AcceptedCmp4),
          "Campaign 5" = sum(AcceptedCmp5), 
-         "Campaign Last" = sum(Response)) %>%
+         "Current Campaign" = sum(Response)) %>%
     pivot_longer(cols = everything(),
                names_to = "campaign",
                values_to = "value") %>%
     mutate(proportion = value / sum(value))
+```
 
+```{r}
 ifood_campaign %>%
   ggplot(aes(x = campaign,
              y = proportion)) +
@@ -142,60 +174,41 @@ ifood_campaign %>%
   coord_flip() +
   labs(
     x = "Campaign",
-    y = "Proportion Accepted (%)",
+    y = "Proportion Accepted",
     title = "Campaign Acceptance Rates"
-  ) 
-
+  ) + 
+  theme_minimal() +
+  theme(
+    plot.title = element_text(margin = margin(b = 20), size = 15, face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15)),
+    axis.title.y = element_text(margin = margin(r = 15))
+  )
 ```
 
-## 3. Campaign engagements
+## Effect of Previous Campaign Engagement
+
+### 1. Previous Any
 ```{r}
 ifood_acceptcmp <- ifood %>%
   select(AcceptedCmp1, AcceptedCmp2, AcceptedCmp3, AcceptedCmp4, AcceptedCmp5, Response) %>%
   mutate(numaccept = rowSums(select(., AcceptedCmp1:AcceptedCmp5)), 
          prevaccept = numaccept > 0)
+```
 
+```{r}
 prop.table(table(ifood_acceptcmp$prevaccept, ifood_acceptcmp$Response), 1)
 chisq.test(table(ifood_acceptcmp$prevaccept, ifood_acceptcmp$Response))
 ```
-Among the customers who did not accept any of the previous campaigns, only 8.35% accepted the most recent campagin. On the other hand, among the customers who accepted at least one of the previous campaigns, 40.8% accepted the most recent campaign.  
-Previous engagement with campaigns significantly increases the likelihoood of responding to the most recent campaign. 
 
-## 4. Target demographic for the next campaign
+Among the customers who did not accept any of the previous campaigns, only 8.35% accepted the current campaign. On the other hand, among the customers who accepted at least one of the previous campaigns, 40.8% accepted the current campaign.   
+
+Previous engagement with campaigns significantly increases the likelihood of responding to the current campaign. 
+
+### 2. Most Recent
 ```{r}
-marital_response <- ifood_marriage %>%
-  group_by(marital) %>%
-  summarise(
-    customers = n(),
-    acceptance = mean(Response))
-
-print(marital_response)
-chisq.test(table(ifood_marriage$marital, ifood_marriage$Response))
+prop.table(table(ifood_acceptcmp$AcceptedCmp5, ifood_acceptcmp$Response), 1)
+chisq.test(table(ifood_acceptcmp$AcceptedCmp5, ifood_acceptcmp$Response))
 ```
-```{r}
-education_response <- ifood_education %>%
-  group_by(education) %>%
-  summarise(
-    customers = n(),
-    acceptance = mean(Response))
+Among the customers who did not the most recent campaign, 11.84% accepted the current campaign. On the other hand, among the customers who accepted the most recent campaign, 56.52% accepted the current campaign. 
 
-print(education_response)
-chisq.test(table(ifood_education$education, ifood_education$Response))
-```
-
-```{r}
-ifood_predictors <- ifood %>%
-  mutate(childnum = Kidhome + Teenhome)
-
-model <- lm(Response ~ Income + Age + MntTotal + childnum + AcceptedCmpOverall, ifood_predictors)
-summary(model)
-
-```
-
-## Statistically significant predictors
-### i.  Marital status: Customers living alone (i.e., divorced, single, widowed)
-### ii.  Educational status: Customers with higher levels of education (i.e., PhD) 
-### iii. Income: Customers with lower income
-### iv. Amount of purchase: Customers who spent greater amount of money on the supermarket's products  
-### v. Number of accepted campaigns: Customers who accepted greater number of past campaigns 
-### ... are more likely to accept the most recent campaign
+Engagement with the most recent campign significantly increases the likelihood of responding to the current campaign.  
